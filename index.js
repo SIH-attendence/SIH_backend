@@ -1,31 +1,40 @@
-require('dotenv').config(); // Loads environment variables from a .env file into process.env
-const express = require('express');
-const connectDB = require('./config/db');
+import express from 'express';
+import dotenv from 'dotenv';
+import connectDB from './config/db.js';
 
-// --- Initialize Server and Database Connection ---
+// Import route files
+import authRoutes from './routes/authRoutes.js';
+import attendanceRoutes from './routes/attendanceRoutes.js';
+import portalRoutes from './routes/portalRoutes.js';
+
+// Load environment variables from .env file
+dotenv.config();
+
+// Connect to the MongoDB database
+connectDB();
+
+// Initialize the Express application
 const app = express();
-connectDB(); // Establish connection to the MongoDB database
 
-// --- Middleware ---
-// This allows our server to accept and parse JSON data in the body of requests.
-// It's essential for receiving data from both the ESP8266 and the web portals.
+// Middleware to parse incoming JSON data (e.g., from the ESP8266)
 app.use(express.json());
 
 // --- Define and Use API Routes ---
-// Any request starting with /api/auth will be handled by authRoutes.js
-app.use('/api/auth', require('./routes/authRoutes'));
-// Any request starting with /api/attendance will be handled by attendanceRoutes.js
-app.use('/api/attendance', require('./routes/attendanceRoutes'));
-// Any request starting with /api/portal will be handled by portalRoutes.js
-app.use('/api/portal', require('./routes/portalRoutes'));
+// This tells the server how to direct incoming requests.
+app.use('/api/auth', authRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/portal', portalRoutes);
 
-// --- Basic Welcome Route ---
-// This helps us verify that the server is running when we visit the root URL.
+// A simple welcome route for the root URL
 app.get('/', (req, res) => {
-  res.send('School Ecosystem API is online and running.');
+  res.send('School Ecosystem API is running...');
 });
 
-// --- Start the Server ---
+// Define the port the server will run on
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
+
+// Start the server
+app.listen(PORT, () => {
+  console.log(`Server is running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+});
 

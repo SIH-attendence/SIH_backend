@@ -1,37 +1,35 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
-const attendanceSchema = new mongoose.Schema({
-  // A direct link to the student who is being marked present.
-  // 'ref: 'User'' tells Mongoose that this ID corresponds to a document
-  // in the 'User' collection. This is crucial for connecting the two models.
-  student: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true,
+// Define the schema for the Attendance model.
+const attendanceSchema = new mongoose.Schema(
+  {
+    // A reference to the User who is being marked present.
+    // 'ref: 'User'' links this field to the User model, creating a relationship.
+    student: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      ref: 'User',
+    },
+    // The date of the attendance record.
+    date: {
+      type: Date,
+      required: true,
+    },
   },
-  // The date of the attendance record. We store only the date part to ensure
-  // that a student is marked present for the entire day, regardless of the time.
-  date: {
-    type: Date,
-    required: true,
-  },
-  // The school this attendance record belongs to.
-  // This is important for fetching attendance for a specific school.
-  schoolId: {
-    type: String,
-    required: true,
+  {
+    // Automatically add 'createdAt' and 'updatedAt' timestamp fields.
+    timestamps: true,
   }
-}, {
-  // Automatically add 'createdAt' and 'updatedAt' timestamps
-  timestamps: true
-});
+);
 
-// --- Compound Unique Index ---
-// This is a critical database rule. It ensures that the combination of a 'student' ID
-// and a 'date' must be unique. This makes it physically impossible to create a duplicate
-// attendance record for the same student on the same day.
+// This is a crucial database index. It ensures that the combination of a 'student'
+// and a 'date' must be unique. This is the rule that prevents a student from
+// being marked present more than once on the same day.
 attendanceSchema.index({ student: 1, date: 1 }, { unique: true });
 
+// Create the Attendance model from the schema.
 const Attendance = mongoose.model('Attendance', attendanceSchema);
 
-module.exports = Attendance;
+// Export the Attendance model as the default export of this file.
+export default Attendance;
+

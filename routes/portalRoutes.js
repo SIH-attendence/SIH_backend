@@ -1,11 +1,16 @@
-const express = require('express');
-const router = express.Router();
-const { getUserProfile } = require('../controllers/authController');
-const { protect } = require('../middleware/authMiddleware');
+import express from 'express';
+import { getUserProfile } from '../controllers/authController.js';
+import { protect } from '../middleware/authMiddleware.js';
 
-// @route   GET api/portal/me
-// @desc    Get the profile of the currently logged-in user
-// @access  Private (requires a valid token)
+// Initialize a new Express router.
+const router = express.Router();
+
+// --- Protected Route for Web Portals ---
+// When a GET request is made to the '/me' endpoint, it first goes through the 'protect' middleware.
+// If the user is authenticated, the request is passed to the getUserProfile controller function.
+// If not, the middleware will block the request.
 router.get('/me', protect, getUserProfile);
 
-module.exports = router;
+// Export the router as the default export of this module.
+export default router;
+

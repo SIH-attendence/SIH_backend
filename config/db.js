@@ -1,20 +1,22 @@
-const mongoose = require('mongoose');
-
-// This line ensures that our application has access to the variables in the .env file.
-require('dotenv').config();
+import mongoose from 'mongoose';
+import 'dotenv/config'; // Loads environment variables from .env
 
 const connectDB = async () => {
   try {
-    // Attempt to connect to the MongoDB Atlas cluster using the secret URL.
-    await mongoose.connect(process.env.DATABASE_URL);
-    console.log('Successfully connected to MongoDB Atlas!');
-  } catch (err) {
-    // If the connection fails for any reason (e.g., wrong password, network issue),
-    // we log a fatal error and exit the application.
-    console.error('FATAL ERROR: Could not connect to MongoDB Atlas.');
-    console.error(err.message); // Print the specific error message
-    process.exit(1); // Exit the application with a "failure" code
+    // The connection logic using mongoose.connect remains the same.
+    // It reads the DATABASE_URL from the loaded environment variables.
+    const conn = await mongoose.connect(process.env.DATABASE_URL);
+
+    // Log a success message to the console with the host it connected to.
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
+  } catch (error) {
+    // If the connection fails, log the error message and exit the process.
+    // This prevents the application from running without a database connection.
+    console.error(`Error connecting to MongoDB: ${error.message}`);
+    process.exit(1); // Exit with a failure code
   }
 };
 
-module.exports = connectDB;
+// Use 'export default' to make this function the main export of the file.
+export default connectDB;
+

@@ -1,50 +1,47 @@
-const Attendance = require('../models/Attendance');
-const User = require('../models/User');
+import Attendance from '../models/Attendance.js';
+import User from '../models/User.js';
 
-// @desc    Mark a student's attendance via RFID card UID
-// @route   POST /api/attendance/mark
-// @access  Public (accessible by the hardware)
+/**
+ * @desc    Mark a student's attendance via RFID scan
+ * @route   POST /api/attendance/mark
+ * @access  Public (intended for hardware, but should be secured in production)
+ */
 const markAttendance = async (req, res) => {
   const { uid } = req.body;
 
-  // 1. Basic Validation: Ensure a UID was sent
+  // Basic validation
   if (!uid) {
     return res.status(400).json({ message: 'Error: UID is required.' });
   }
 
   try {
-    // 2. Identification: Find the student associated with this RFID card
+    // 1. Find the student by their RFID card UID
     const student = await User.findOne({ uid: uid, role: 'student' });
 
-    // 3. Authentication: If no student is found with that UID, it's an invalid card
     if (!student) {
-      return res.status(404).json({ message: 'Student not registered with this card.' });
+      return res.status(404).send('Student not registered.'); // 404 Not Found
     }
 
-    // 4. Duplication Check & Creation:
-    // Get the start of today's date (in UTC for consistent database storage)
+    // 2. Get today's date at the beginning of the day (midnight) for consistency
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Create a new attendance record
+    // 3. Attempt to create a new attendance record
     const newAttendance = new Attendance({
-      student: student._id, // Link to the student's unique ID
+      student: student._id,
       schoolId: student.schoolId,
       date: today,
     });
-
-    // Attempt to save the new record.
-    // The unique index on the schema will automatically prevent duplicates.
     await newAttendance.save();
 
-    // 5. Success Response: If save is successful, send back the student's name
-    res.status(200).json({ message: `Present: ${student.name}` });
+    // 4. Send success response back to the ESP8266
+    res.status(200).send(`Present: ${student.name}`);
 
   } catch (error) {
-    // This error (code 11000) specifically means the unique index was violated
+    // This specifically checks for the 'duplicate key' error from MongoDB
     if (error.code === 11000) {
-      // It's not a server failure, just a duplicate scan.
-      return res.status(200).json({ message: 'Already marked present today.' });
+      // It's not a server error, it's just a duplicate scan.
+      return res.status(200).send('Already marked present.');
     }
     // For any other unexpected errors
     console.error('Error marking attendance:', error);
@@ -52,20 +49,23 @@ const markAttendance = async (req, res) => {
   }
 };
 
-// @desc    Get all attendance records for today for a specific school
-// @route   GET /api/attendance/today/:schoolId
-// @access  Public (for simplicity, but could be protected)
+
+/**
+ * @desc    Get today's attendance for a specific school
+ * @route   GET /api/attendance/today/:schoolId
+ * @access  Private (should be protected by teacher role)
+ */
 const getTodaysAttendance = async (req, res) => {
   try {
-    // Get the start of today's date
+    // Get today's date at the beginning of the day (midnight)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Find all attendance records for the given schoolId that were created on or after the start of today
+    // Find all attendance records for the given schoolId and for today's date
     const attendanceRecords = await Attendance.find({
       schoolId: req.params.schoolId,
-      date: { $gte: today },
-    }).populate('student', 'name'); // This is a powerful feature: it replaces the student ID with their name from the User collection.
+      date: today,
+    }).populate('student', 'name'); // '.populate' fetches the student's name from the User collection
 
     res.json(attendanceRecords);
   } catch (error) {
@@ -74,8 +74,6 @@ const getTodaysAttendance = async (req, res) => {
   }
 };
 
-module.exports = {
-  markAttendance,
-  getTodaysAttendance,
-};
+
+export { markAttendance, getTodaysAttendance };
 

@@ -1,15 +1,24 @@
-const express = require('express');
-const router = express.Router();
-const { markAttendance, getTodaysAttendance } = require('../controllers/attendanceController');
+import express from 'express';
+import {
+  markAttendance,
+  getTodaysAttendance,
+} from '../controllers/attendanceController.js';
 
-// @route   POST api/attendance/mark
-// @desc    Mark attendance from an RFID reader
-// @access  Public (should be secured with an API key in a real product)
+// Initialize a new Express router.
+const router = express.Router();
+
+// --- Public Route for Hardware ---
+// When a POST request is made to '/mark', the markAttendance function will be called.
+// This is the endpoint that the ESP8266 RFID reader will send data to.
 router.post('/mark', markAttendance);
 
-// @route   GET api/attendance/today/:schoolId
-// @desc    Get all attendance records for a specific school for the current day
-// @access  Protected (should require a teacher's login)
+// --- Protected Route for Portals ---
+// When a GET request is made to '/today/:schoolId', the getTodaysAttendance function is called.
+// The ':schoolId' is a URL parameter that allows the teacher portal to specify which school's
+// attendance data it wants to retrieve.
+// Note: We will add protection to this route later.
 router.get('/today/:schoolId', getTodaysAttendance);
 
-module.exports = router;
+// Export the router as the default export of this module.
+export default router;
+
