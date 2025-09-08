@@ -2,22 +2,27 @@ import express from 'express';
 import {
   markAttendance,
   getTodaysAttendance,
+  syncOfflineAttendance, // Import the new function
 } from '../controllers/attendanceController.js';
 
 // Initialize a new Express router.
 const router = express.Router();
 
-// --- Public Route for Hardware ---
-// When a POST request is made to '/mark', the markAttendance function will be called.
-// This is the endpoint that the ESP8266 RFID reader will send data to.
+// --- Public Routes for Hardware ---
+
+// Endpoint for real-time, online attendance marking.
 router.post('/mark', markAttendance);
 
+// NEW: Endpoint for receiving a batch of offline logs.
+router.post('/sync-logs', syncOfflineAttendance);
+
+
 // --- Protected Route for Portals ---
-// When a GET request is made to '/today/:schoolId', the getTodaysAttendance function is called.
-// The ':schoolId' is a URL parameter that allows the teacher portal to specify which school's
-// attendance data it wants to retrieve.
+
+// Endpoint for the teacher portal to get today's attendance for a specific school.
 // Note: We will add protection to this route later.
 router.get('/today/:schoolId', getTodaysAttendance);
+
 
 // Export the router as the default export of this module.
 export default router;
