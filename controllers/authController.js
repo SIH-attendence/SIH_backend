@@ -1,71 +1,63 @@
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 
-// Helper function to generate a JWT
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: '30d', // Token expires in 30 days
+    expiresIn: '30d',
   });
 };
 
 /**
- * @desc    Register a new user (student or teacher)
- * @route   POST /api/auth/register
- * @access  Public
+ * @desc Register a new user (student or teacher)
+ * @route POST /api/auth/register
+ * @access Public
  */
 const registerUser = async (req, res) => {
   const { name, username, password, role, schoolId, uid } = req.body;
 
   try {
-    // Check if the username already exists
     const userExists = await User.findOne({ username });
     if (userExists) {
-      res.status(400); // Bad Request
-      throw new Error('User with this username already exists');
+      return res.status(400).json({ message: "User with this username already exists" });
     }
 
-    // Create a new user in the database
+    if (!["student", "teacher"].includes(role)) {
+      return res.status(400).json({ message: "Invalid role" });
+    }
+
     const user = await User.create({
       name,
       username,
-      password, // The password will be hashed by the pre-save hook in the User model
+      password,
       role,
       schoolId,
-      uid, // This will be present for students, null for teachers
+      uid: role === "student" ? uid : null,
     });
 
-    // If user creation is successful, send back user data and a token
-    if (user) {
-      res.status(201).json({ // 201 Created
-        _id: user._id,
-        name: user.name,
-        username: user.username,
-        role: user.role,
-        schoolId: user.schoolId,
-        token: generateToken(user._id),
-      });
-    } else {
-      res.status(400);
-      throw new Error('Invalid user data');
-    }
+    res.status(201).json({
+      _id: user._id,
+      name: user.name,
+      username: user.username,
+      role: user.role,
+      schoolId: user.schoolId,
+      token: generateToken(user._id),
+    });
   } catch (error) {
-    res.status(res.statusCode || 500).json({ message: error.message });
+    res.status(500).json({ message: error.message });
   }
 };
 
 /**
- * @desc    Authenticate user & get token
- * @route   POST /api/auth/login
- * @access  Public
+ * @desc Authenticate user & get token
+ * @route POST /api/auth/login
+ * @access Public
  */
 const loginUser = async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    // Find the user by their username
     const user = await User.findOne({ username });
 
-    // Check if user exists and if the provided password matches the stored hashed password
     if (user && (await user.matchPassword(password))) {
       res.json({
         _id: user._id,
@@ -76,21 +68,19 @@ const loginUser = async (req, res) => {
         token: generateToken(user._id),
       });
     } else {
-      res.status(401); // Unauthorized
-      throw new Error('Invalid username or password');
+      res.status(401).json({ message: "Invalid username or password" });
     }
   } catch (error) {
-    res.status(res.statusCode || 500).json({ message: error.message });
+    res.status(500).json({ message: error.message });
   }
 };
 
 /**
- * @desc    Get user profile
- * @route   GET /api/portal/me
- * @access  Private
+ * @desc Get user profile
+ * @route GET /api/portal/me
+ * @access Private
  */
 const getUserProfile = async (req, res) => {
-  // The 'protect' middleware has already fetched the user and attached it to the request object (req.user)
   const user = req.user;
 
   if (user) {
@@ -102,10 +92,41 @@ const getUserProfile = async (req, res) => {
       schoolId: user.schoolId,
     });
   } else {
-    res.status(404); // Not Found
-    throw new Error('User not found');
+    res.status(404).json({ message: "User not found" });
+  }
+};
+
+/**
+ * @desc Register teacher (shortcut route)
+ * @route POST /api/auth/register-teacher
+ * @access Public
+ */
+export const registerTeacher = async (req, res) => {
+  try {
+    const { name, username, password, schoolId } = req.body;
+
+    const existing = await User.findOne({ username });
+    if (existing) return res.status(400).json({ message: "Username already exists" });
+
+    const teacher = await User.create({
+      name,
+      username,
+      password,
+      role: "teacher",
+      schoolId,
+    });
+
+    res.status(201).json({
+      _id: teacher._id,
+      name: teacher.name,
+      username: teacher.username,
+      role: teacher.role,
+      schoolId: teacher.schoolId,
+      token: generateToken(teacher._id),
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
 export { registerUser, loginUser, getUserProfile };
-
