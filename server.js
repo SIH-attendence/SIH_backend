@@ -1,7 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import connectDB from './config/db.js';
-
+import cors from "cors";
 // Import route files
 import authRoutes from './routes/authRoutes.js';
 import attendanceRoutes from './routes/attendanceRoutes.js';
@@ -15,6 +15,11 @@ connectDB();
 
 // Initialize the Express application
 const app = express();
+
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true
+}));
 
 // Middleware to parse incoming JSON data (e.g., from the ESP8266)
 app.use(express.json());
