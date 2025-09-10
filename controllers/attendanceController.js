@@ -7,28 +7,31 @@ import User from '../models/User.js';
  * @access  Public (for hardware)
  */
 const markAttendance = async (req, res) => {
-  const { uid, timestamp } = req.body; // Now expecting timestamp as well
+  const { uid, timestamp,status } = req.body; // Now expecting timestamp as well
 
   if (!uid) {
     return res.status(400).json({ message: 'Error: UID is required.' });
   }
 
   try {
-    const student = await User.findOne({ uid: uid, role: 'student' });
+const uidTrimmed = uid?.trim();
+const timestampTrimmed = timestamp?.trim();
 
-    if (!student) {
-      return res.status(404).send('Student not registered.');
-    }
+const student = await User.findOne({ uid: uidTrimmed, role: 'student' });
+if (!student) {
+  return res.status(404).send('Student not registered.');
+}
 
-    // Use the timestamp from the ESP if provided, otherwise use current time.
-    // Set to the start of the day for consistency.
-    const attendanceDate = timestamp ? new Date(timestamp) : new Date();
-    attendanceDate.setHours(0, 0, 0, 0);
+// Declare attendanceDate only once
+const attendanceDate = timestampTrimmed ? new Date(timestampTrimmed) : new Date();
+attendanceDate.setHours(0, 0, 0, 0);
+
 
     const newAttendance = new Attendance({
       student: student._id,
       schoolId: student.schoolId,
       date: attendanceDate,
+       status: status || "Present",
     });
     await newAttendance.save();
 
@@ -48,58 +51,44 @@ const markAttendance = async (req, res) => {
  * @access  Public (for hardware)
  */
 const syncOfflineAttendance = async (req, res) => {
-  // The ESP sends the entire file content as plain text in the body
-  const logData = req.body;
+  const logs = req.body; // Expecting JSON array
 
-  if (!logData || typeof logData !== 'string' || logData.trim() === '') {
+  if (!Array.isArray(logs) || logs.length === 0) {
     return res.status(400).json({ message: 'Log data is empty or invalid.' });
   }
-  
-  console.log('--- Received a BATCH of offline logs to sync ---');
-  console.log(logData);
 
-  const logs = logData.trim().split('\n');
-  let successCount = 0;
-  let errorCount = 0;
 
-  // Process each log entry one by one
-  for (const log of logs) {
-    const [uid, timestamp] = log.split(',');
-    if (!uid || !timestamp) {
-      errorCount++;
-      continue; // Skip malformed lines
+const results = await Promise.all(logs.map(async log => {
+  try {
+    const uidTrimmed = log.uid?.trim();
+    const timestampTrimmed = log.timestamp?.trim();
+
+    const student = await User.findOne({ uid: uidTrimmed, role: 'student' });
+    if (!student) {
+      return { success: false };
     }
 
-    try {
-      const student = await User.findOne({ uid: uid.trim(), role: 'student' });
-      if (!student) {
-        errorCount++;
-        console.log(`Sync error: Student with UID ${uid.trim()} not found.`);
-        continue;
-      }
-      
-      const attendanceDate = new Date(timestamp.trim());
-      attendanceDate.setHours(0, 0, 0, 0);
+    const attendanceDate = timestampTrimmed ? new Date(timestampTrimmed) : new Date();
+    attendanceDate.setHours(0, 0, 0, 0);
 
-      // Create a new attendance record, but ignore duplicates
-      await Attendance.updateOne(
-        { student: student._id, date: attendanceDate },
-        { $setOnInsert: { schoolId: student.schoolId, student: student._id, date: attendanceDate } },
-        { upsert: true } // This creates the doc if it doesn't exist, otherwise does nothing
-      );
-      successCount++;
-    } catch (err) {
-      errorCount++;
-      console.error(`Error processing log entry "${log}":`, err);
-    }
+    await Attendance.updateOne(
+      { student: student._id, date: attendanceDate },
+      { $setOnInsert: { schoolId: student.schoolId, student: student._id, date: attendanceDate } },
+      { upsert: true }
+    );
+
+    return { success: true };
+  } catch {
+    return { success: false };
   }
-  
-  console.log(`Sync complete. Success: ${successCount}, Failed: ${errorCount}`);
-  res.status(200).json({ 
-    message: 'Sync process finished.',
-    successCount,
-    errorCount,
-  });
+}));
+
+
+const successCount = results.filter(r => r.success).length;
+const errorCount = results.filter(r => !r.success).length;
+
+res.status(200).json({ message: 'Sync process finished.', successCount, errorCount });
+
 };
 
 
@@ -116,7 +105,7 @@ const getTodaysAttendance = async (req, res) => {
     const attendanceRecords = await Attendance.find({
       schoolId: req.params.schoolId,
       date: today,
-    }).populate('student', 'name');
+    }).populate("student", "name rollNumber class schoolId username"); 
 
     res.json(attendanceRecords);
   } catch (error) {
@@ -124,6 +113,38 @@ const getTodaysAttendance = async (req, res) => {
     res.status(500).json({ message: 'Server error while fetching attendance.' });
   }
 };
+// getMyAttendanceRecords
+const getMyAttendanceRecords = async (req, res) => {
+  try {
+    const studentId = req.user.id;
 
-export { markAttendance, getTodaysAttendance, syncOfflineAttendance };
+    const records = await Attendance.find({ student: studentId })
+      .sort({ date: 1 })
+      .populate("student", "name rollNumber class schoolId username");
+
+    const totalDays = records.length;
+    const presentDays = records.filter(r => r.status === "Present").length;
+    const absentDays = records.filter(r => r.status === "Absent").length;
+
+    res.json({
+      name: req.user.name,
+      rollNumber: req.user.rollNumber,
+      class: req.user.class,
+      schoolId: req.user.schoolId,
+      username: req.user.username,
+      totalDays,
+      presentDays,
+      absentDays,
+      records,
+    });
+  } catch (error) {
+    console.error("Error fetching student attendance:", error);
+    res.status(500).json({ message: "Server error while fetching attendance." });
+  }
+};
+
+
+
+
+export { markAttendance, getTodaysAttendance, syncOfflineAttendance,  getMyAttendanceRecords };
 

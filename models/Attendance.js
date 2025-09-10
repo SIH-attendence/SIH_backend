@@ -19,6 +19,7 @@ const attendanceSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    status: { type: String, enum: ["Present", "Absent", "Late"], default: "Present" },
   },
   {
     // Automatically add 'createdAt' and 'updatedAt' timestamp fields.
