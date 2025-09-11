@@ -11,6 +11,5 @@ const router = express.Router();
 // If not, the middleware will block the request.
 router.get('/me', protect, getUserProfile);
 
-// Export the router as the default export of this module.
 export default router;
 

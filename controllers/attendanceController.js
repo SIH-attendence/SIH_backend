@@ -143,8 +143,46 @@ const getMyAttendanceRecords = async (req, res) => {
   }
 };
 
+// service to mark absentees
+const markAbsenteesForSchool = async (schoolId) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const students = await User.find({ schoolId, role: "student" });
+  const marked = await Attendance.find({ schoolId, date: today });
+
+  const absentStudents = students.filter(
+    (s) => !marked.some((m) => m.student.toString() === s._id.toString())
+  );
+
+  if (absentStudents.length > 0) {
+    const absentRecords = absentStudents.map((s) => ({
+      student: s._id,
+      schoolId: s.schoolId,
+      date: today,
+      status: "Absent",
+    }));
+
+    await Attendance.insertMany(absentRecords);
+  }
+
+  return {
+    totalStudents: students.length,
+    presentCount: marked.length,
+    absentCount: absentStudents.length,
+  };
+};
+const markAbsentees = async (req, res) => {
+  try {
+    const result = await markAbsenteesForSchool(req.params.schoolId);
+    res.json({ message: "Absentees marked successfully", ...result });
+  } catch (error) {
+    console.error("Error marking absentees:", error);
+    res.status(500).json({ message: "Server error while marking absentees." });
+  }
+};
 
 
 
-export { markAttendance, getTodaysAttendance, syncOfflineAttendance,  getMyAttendanceRecords };
 
+export { markAttendance, getTodaysAttendance, syncOfflineAttendance,  getMyAttendanceRecords, markAbsenteesForSchool ,  markAbsentees};
