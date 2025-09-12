@@ -40,19 +40,28 @@ const getDashboard = async (req, res) => {
     };
 
     // --- Assignments (filtered by student) ---
-    const assignments = await Assignment.find({ student: studentId });
+  // --- Assignments (filtered by student) ---
+// --- Assignments (filtered by student/class) ---
+const assignments = await Assignment.find({
+  $or: [
+    { studentIds: { $in: [req.user.schoolId] } }, // student-specific
+    { classId: req.user.classId }                 // class-wide
+  ]
+});
 
-    const completed = assignments.filter(a => a.status === 'completed').length;
-    const pending = assignments.filter(a => a.status === 'pending').length;
-    const totalAssignments = assignments.length;
+// Normalize status to lowercase for comparison
+const completed = assignments.filter(a => a.status?.toLowerCase() === 'completed').length;
+const pending = assignments.filter(a => a.status?.toLowerCase() === 'pending').length;
+const totalAssignments = assignments.length;
 
-    // Calculate average grade (ignoring null/undefined grades)
-    const gradedAssignments = assignments.filter(a => typeof a.grade === 'number');
-    const avgGrade = gradedAssignments.length > 0
-      ? Math.round(gradedAssignments.reduce((acc, a) => acc + a.grade, 0) / gradedAssignments.length)
-      : 0;
+// Calculate average grade (ignoring null/undefined grades)
+const gradedAssignments = assignments.filter(a => typeof a.grade === 'number');
+const avgGrade = gradedAssignments.length > 0
+  ? Math.round(gradedAssignments.reduce((acc, a) => acc + a.grade, 0) / gradedAssignments.length)
+  : 0;
 
-    const homeworkStats = { completed, pending, total: totalAssignments, avgGrade };
+const homeworkStats = { completed, pending, total: totalAssignments, avgGrade };
+
 
     // --- Today's Classes ---
     const today = new Date();

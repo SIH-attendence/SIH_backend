@@ -8,7 +8,10 @@ const assignmentSchema = new mongoose.Schema({
   status: { type: String, enum: ["pending", "completed", "overdue"], default: "pending" },
   dueDate: { type: Date, required: true },
   estimatedTime: { type: String }, // e.g., '2 hours'
-  assignedBy: { type: String },    // teacher name
+  assignedBy: { type: String }, 
+  classId: { type: String }, 
+ studentIds: [{ type: String }],// schoolId of student
+  // teacher name
 }, { timestamps: true });
 
 const Assignment = mongoose.model("Assignment", assignmentSchema);
