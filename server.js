@@ -25,7 +25,7 @@ connectDB();
 const app = express();
 
 app.use(cors({
-  origin: ["http://localhost:5173" , "http://localhost:3000" , "https://student-portal-five-khaki.vercel.app"],
+  origin: ["https://student-portal-five-khaki.vercel.app","https://student-page-omega.vercel.app" , "https://sih-admin-seven.vercel.app"],
   credentials: true
 }));
 
