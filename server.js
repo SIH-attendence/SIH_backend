@@ -39,6 +39,7 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/portal', portalRoutes);
 app.use('/api/profile', profileRoutes);
 app.use("/api/assignments", assignmentRoutes);
+
 // --- Dashboard Routes ---
 app.get('/api/portal/dashboard', protect, getDashboard);
 

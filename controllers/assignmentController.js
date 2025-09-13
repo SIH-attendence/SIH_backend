@@ -46,33 +46,50 @@ export const createAssignment = async (req, res) => {
 
 // GET /api/assignments
 // Get assignments for this user
+// GET /api/assignments
 export const getAssignments = async (req, res) => {
   try {
-    const { role, schoolId, studentId, classId } = req.user;
+    const { role, schoolId, classId } = req.user;
+
+    console.log("Fetching assignments for user:", req.user);
 
     let assignments;
 
     if (role === "teacher") {
-      // Teachers see all assignments they created (optionally filter by school)
+      // Teachers see all assignments they created for their school
       assignments = await Assignment.find({ schoolId }).sort({ dueDate: 1 });
     } else if (role === "student") {
-      // Students see assignments assigned to them or their class
+      // Students see assignments assigned to their school or their class
       assignments = await Assignment.find({
         $or: [
-          { studentIds: studentId },  // directly assigned to student
-          { classId: classId }        // assigned to entire class
+          { studentIds: { $in: [schoolId] } }, // use schoolId here
+          { classId: classId }
         ]
       }).sort({ dueDate: 1 });
     } else {
       return res.status(403).json({ message: "Unauthorized role" });
     }
 
-    res.json(assignments);
+    console.log("Assignments found:", assignments.length);
+    assignments.forEach(a =>
+      console.log(`Assignment: ${a.title} Due: ${a.dueDate} Student IDs: ${a.studentIds} Class ID: ${a.classId}`)
+    );
+
+    // Convert each assignment to plain object and ensure dueDate is string
+    const formattedAssignments = assignments.map(a => ({
+      ...a.toObject(),
+      dueDate: a.dueDate.toISOString(),
+    }));
+
+    res.json(formattedAssignments);
+
   } catch (error) {
     console.error("Error fetching assignments:", error.message);
     res.status(500).json({ message: "Server error" });
   }
 };
+
+
 
 // Get single assignment
 export const getAssignmentById = async (req, res) => {
